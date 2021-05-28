@@ -1,33 +1,92 @@
-Test = 0
-OLED.init(128, 64)
-strip = neopixel.create(DigitalPin.P6, 0, NeoPixelMode.RGB)
-basic.show_leds("""
-    . # . # .
-    . # . # .
-    . . . . .
-    # . . . #
-    . # # # .
-    """)
-
-def on_forever():
-    global Test
-    Test = smarthome.read_noise(AnalogPin.P1)
-    OLED.clear()
-    OLED.write_string("Loudness - ")
-    OLED.write_num(Test)
-    if Test > 60:
+def ListenForSounds():
+    global SoundLoudness
+    if SecurityActive:
+        # #Set the SoundLoudness to the reading from the sound detector then write it in oled screen##
+        SoundLoudness = smarthome.read_noise(AnalogPin.P1)
         OLED.clear()
-        OLED.write_string("I heard a loud sound!")
+        OLED.write_string("Loudness - " + ("" + str(SoundLoudness)) + "dB")
+        # #Check to see if the crash detector is active or not so it wont flase activate to outside sounds##
+        if smarthome.crash_sensor():
+            OLED.write_string_new_line("      The crash detector is active!")
+            # #^Give this some space cause it wont show up on a new line##
+            basic.show_leds("""
+                . # . # .
+                # # . # #
+                . . . . .
+                . # # # .
+                # . . . #
+                """)
+            # #If the sound is louder than 60 dB then make a sound to notify the owner of the house##
+            if SoundLoudness > 60:
+                OLED.clear()
+                OLED.write_string("The crash detector is active and there was a loud sound!")
+                basic.show_leds("""
+                    . . # . .
+                    . . # . .
+                    . . # . .
+                    . . . . .
+                    . . # . .
+                    """)
+                # #beep until turned off##
+                while SecurityActive:
+                    music.play_tone(1000, music.beat(BeatFraction.EIGHTH))
+                    basic.pause(10)
+                basic.show_leds("""
+                    . # . # .
+                    # # . # #
+                    . . . . .
+                    # . . . #
+                    . # # # .
+                    """)
+        else:
+            basic.show_leds("""
+                . # . # .
+                # # . # #
+                . . . . .
+                # . . . #
+                . # # # .
+                """)
+"""
+
+#Also set volume, oled, crash detector so the robot knows where things are and how loud to make sounds##
+
+"""
+
+def on_button_pressed_a():
+    ChangeSecurityState()
+input.on_button_pressed(Button.A, on_button_pressed_a)
+
+def ChangeSecurityState():
+    global SecurityActive
+    # #If its not true then make it true and say its on##
+    if not (SecurityActive):
+        basic.pause(1000)
+        # #Make a beep sound 5 times##
+        music.play_tone(349, music.beat(BeatFraction.EIGHTH))
+        basic.pause(50)
+        # #Make a beep sound 5 times##
+        music.play_tone(440, music.beat(BeatFraction.EIGHTH))
+        OLED.clear()
+        OLED.write_string("Security is now on")
+        SecurityActive = 1
         basic.show_leds("""
-            . . # . .
-            . . # . .
-            . . # . .
+            . # . # .
+            # # . # #
             . . . . .
-            . . # . .
+            # . . . #
+            . # # # .
             """)
-        for index in range(20):
-            music.play_tone(randint(600, 800), music.beat(BeatFraction.SIXTEENTH))
-            basic.pause(15)
+    else:
+        # #If its true then make it false and say its off##
+        basic.pause(1000)
+        # #Make a beep sound 5 times##
+        music.play_tone(440, music.beat(BeatFraction.EIGHTH))
+        basic.pause(50)
+        # #Make a beep sound 5 times##
+        music.play_tone(349, music.beat(BeatFraction.EIGHTH))
+        OLED.clear()
+        OLED.write_string("Security is now off")
+        SecurityActive = 0
         basic.show_leds("""
             . # . # .
             . # . # .
@@ -35,4 +94,25 @@ def on_forever():
             # . . . #
             . # # # .
             """)
+"""
+
+#Make the needed variables for the detectors work##
+
+"""
+SoundLoudness = 0
+SecurityActive = 0
+music.set_volume(255)
+smarthome.crash_sensor_setup(DigitalPin.P2)
+OLED.init(128, 64)
+basic.show_leds("""
+    . # . # .
+    . # . # .
+    . . . . .
+    # . . . #
+    . # # # .
+    """)
+# #Loops forever##
+
+def on_forever():
+    ListenForSounds()
 basic.forever(on_forever)
